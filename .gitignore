@@ -1,0 +1,60 @@
+# Operating System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# IDE and Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Dependencies (if you add npm/yarn later)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build outputs (if you add a build process)
+dist/
+build/
+*.crx
+*.pem
+*.zip
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Chrome Extension specific
+*.crx
+*.pem
