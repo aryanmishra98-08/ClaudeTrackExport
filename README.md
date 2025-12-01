@@ -1,5 +1,7 @@
 # Chat Exporter for ChatGPT & Claude
 
+> **Note:** You are currently on the `dev` branch. This branch contains the latest development features and may be unstable. For the stable release, please switch to the `main` branch.
+
 > A vibe coding project built on a lazy Sunday afternoon - because sometimes the best tools come from playful experimentation!
 
 A simple browser extension that lets you export your ChatGPT and Claude conversations to PDF with just one click. No fuss, no complicated setup - just click and download.
