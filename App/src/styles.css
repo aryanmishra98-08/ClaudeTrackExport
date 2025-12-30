@@ -1,0 +1,423 @@
+/**
+ * Claude Track & Export - Styles
+ * Adaptive collapsible UI with smooth transitions
+ */
+
+/* ============================================
+   CSS Variables
+   ============================================ */
+:root {
+  --cte-primary: #6366f1;
+  --cte-primary-hover: #4f46e5;
+  --cte-success: #22c55e;
+  --cte-warning: #f59e0b;
+  --cte-danger: #ef4444;
+  --cte-info: #3b82f6;
+  
+  --cte-bg: #1a1a1a;
+  --cte-bg-secondary: #262626;
+  --cte-bg-tertiary: #333333;
+  --cte-border: #404040;
+  --cte-text: #fafafa;
+  --cte-text-secondary: #a1a1aa;
+  --cte-text-muted: #71717a;
+  
+  --cte-radius: 8px;
+  --cte-radius-sm: 4px;
+  --cte-transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --cte-bg: #ffffff;
+    --cte-bg-secondary: #f4f4f5;
+    --cte-bg-tertiary: #e4e4e7;
+    --cte-border: #d4d4d8;
+    --cte-text: #18181b;
+    --cte-text-secondary: #52525b;
+    --cte-text-muted: #a1a1aa;
+  }
+}
+
+/* ============================================
+   Panel Container
+   ============================================ */
+.cte-panel {
+  background: var(--cte-bg);
+  border-top: 1px solid var(--cte-border);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px;
+  color: var(--cte-text);
+  margin-top: auto;
+  position: relative;
+  overflow: hidden;
+  transition: var(--cte-transition);
+}
+
+.cte-panel-floating {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 10000;
+  border-radius: var(--cte-radius);
+  border: 1px solid var(--cte-border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* ============================================
+   View States - Collapsed/Expanded
+   ============================================ */
+
+/* Default: Show expanded, hide collapsed */
+.cte-collapsed-view {
+  display: none;
+}
+
+.cte-expanded-view {
+  display: block;
+  padding: 12px;
+  opacity: 1;
+  transition: var(--cte-transition);
+}
+
+/* Sidebar Collapsed: Show icon only */
+.cte-panel.cte-sidebar-collapsed {
+  width: auto;
+  min-width: 0;
+  padding: 0;
+  border-top: none;
+}
+
+.cte-panel.cte-sidebar-collapsed .cte-collapsed-view {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+}
+
+.cte-panel.cte-sidebar-collapsed .cte-expanded-view {
+  display: none;
+  opacity: 0;
+  height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Sidebar Expanded: Show full content */
+.cte-panel.cte-sidebar-expanded {
+  width: 100%;
+}
+
+.cte-panel.cte-sidebar-expanded .cte-collapsed-view {
+  display: none;
+}
+
+.cte-panel.cte-sidebar-expanded .cte-expanded-view {
+  display: block;
+  opacity: 1;
+}
+
+/* ============================================
+   Collapsed View - Icon Button
+   ============================================ */
+.cte-icon-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 40px;
+  height: 48px;
+  padding: 6px;
+  background: var(--cte-bg-secondary);
+  border: 1px solid var(--cte-border);
+  border-radius: var(--cte-radius);
+  cursor: pointer;
+  transition: var(--cte-transition);
+}
+
+.cte-icon-btn:hover {
+  background: var(--cte-primary);
+  border-color: var(--cte-primary);
+}
+
+.cte-icon-btn:hover .cte-main-icon {
+  color: white;
+}
+
+.cte-main-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--cte-primary);
+  transition: var(--cte-transition);
+}
+
+.cte-mini-indicators {
+  display: flex;
+  gap: 3px;
+}
+
+.cte-mini-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  transition: var(--cte-transition);
+}
+
+/* ============================================
+   Expanded View - Header
+   ============================================ */
+.cte-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--cte-border);
+}
+
+.cte-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--cte-text);
+}
+
+.cte-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--cte-primary);
+}
+
+/* ============================================
+   Expanded View - Content
+   ============================================ */
+.cte-panel-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cte-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cte-section-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--cte-text-secondary);
+}
+
+/* ============================================
+   Usage Bars
+   ============================================ */
+.cte-usage-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cte-usage-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cte-usage-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cte-usage-label {
+  font-size: 12px;
+  color: var(--cte-text);
+  font-weight: 500;
+}
+
+.cte-usage-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cte-text);
+}
+
+.cte-progress-bar {
+  height: 5px;
+  background: var(--cte-bg-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.cte-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease, background-color 0.3s ease;
+}
+
+.cte-usage-detail {
+  font-size: 10px;
+  color: var(--cte-text-muted);
+}
+
+/* ============================================
+   Refresh Row
+   ============================================ */
+.cte-refresh-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 6px;
+  border-top: 1px solid var(--cte-border);
+  margin-top: 2px;
+}
+
+.cte-refresh-text {
+  font-size: 10px;
+  color: var(--cte-text-muted);
+}
+
+.cte-refresh-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--cte-text-secondary);
+  border-radius: var(--cte-radius-sm);
+  transition: var(--cte-transition);
+}
+
+.cte-refresh-btn:hover {
+  background: var(--cte-bg-secondary);
+  color: var(--cte-primary);
+}
+
+.cte-refresh-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ============================================
+   Export Button
+   ============================================ */
+.cte-export-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--cte-primary);
+  border: none;
+  border-radius: var(--cte-radius);
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--cte-transition);
+}
+
+.cte-export-btn:hover {
+  background: var(--cte-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+}
+
+.cte-export-btn:active {
+  transform: translateY(0);
+}
+
+.cte-export-btn:disabled,
+.cte-export-btn.cte-loading {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.cte-export-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* ============================================
+   Notifications
+   ============================================ */
+.cte-notification {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  background: var(--cte-bg-secondary);
+  border: 1px solid var(--cte-border);
+  border-radius: var(--cte-radius);
+  padding: 6px 12px;
+  font-size: 11px;
+  color: var(--cte-text);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  z-index: 10001;
+  pointer-events: none;
+}
+
+.cte-notification-show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+.cte-notification-success {
+  border-color: var(--cte-success);
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--cte-success);
+}
+
+.cte-notification-error {
+  border-color: var(--cte-danger);
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--cte-danger);
+}
+
+.cte-notification-info {
+  border-color: var(--cte-info);
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--cte-info);
+}
+
+/* ============================================
+   Animations
+   ============================================ */
+.cte-spinning svg,
+.cte-loading svg {
+  animation: cte-spin 0.8s linear infinite;
+}
+
+@keyframes cte-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================
+   Floating Panel Responsive
+   ============================================ */
+@media (max-width: 768px) {
+  .cte-panel-floating {
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+  }
+}
