@@ -21,9 +21,7 @@
     settings: {
       autoRefresh: true,
       copyToClipboard: true,
-      autoOpenNewChat: true,
-      showNotifications: true,
-      playSoundNotifications: true
+      showNotifications: true
     },
     // Cleanup tracking to prevent memory leaks
     observers: {
@@ -46,9 +44,7 @@
       const settings = result.claude_track_export_settings || {
         autoRefresh: true,
         copyToClipboard: true,
-        autoOpenNewChat: true,
-        showNotifications: true,
-        playSoundNotifications: true
+        showNotifications: true
       };
       state.settings = settings;
       console.log('[Claude Track] Settings loaded:', settings);
@@ -553,70 +549,6 @@
         console.log('[Claude Track] Browser notification sent');
       }
     });
-  }
-
-  function playSound(type = 'success') {
-    // Check if sound notifications are enabled
-    if (!state.settings.playSoundNotifications) {
-      return;
-    }
-
-    // Use Web Audio API to create sound notifications
-    try {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const now = audioContext.currentTime;
-
-      if (type === 'success') {
-        // Success: Two ascending beeps
-        const osc1 = audioContext.createOscillator();
-        const gain1 = audioContext.createGain();
-        osc1.connect(gain1);
-        gain1.connect(audioContext.destination);
-        osc1.frequency.setValueAtTime(800, now);
-        gain1.gain.setValueAtTime(0.3, now);
-        gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-        osc1.start(now);
-        osc1.stop(now + 0.1);
-
-        const osc2 = audioContext.createOscillator();
-        const gain2 = audioContext.createGain();
-        osc2.connect(gain2);
-        gain2.connect(audioContext.destination);
-        osc2.frequency.setValueAtTime(1000, now + 0.15);
-        gain2.gain.setValueAtTime(0.3, now + 0.15);
-        gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
-        osc2.start(now + 0.15);
-        osc2.stop(now + 0.25);
-      } else if (type === 'error') {
-        // Error: Two descending beeps
-        const osc1 = audioContext.createOscillator();
-        const gain1 = audioContext.createGain();
-        osc1.connect(gain1);
-        gain1.connect(audioContext.destination);
-        osc1.frequency.setValueAtTime(600, now);
-        gain1.gain.setValueAtTime(0.3, now);
-        gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-        osc1.start(now);
-        osc1.stop(now + 0.1);
-
-        const osc2 = audioContext.createOscillator();
-        const gain2 = audioContext.createGain();
-        osc2.connect(gain2);
-        gain2.connect(audioContext.destination);
-        osc2.frequency.setValueAtTime(400, now + 0.15);
-        gain2.gain.setValueAtTime(0.3, now + 0.15);
-        gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
-        osc2.start(now + 0.15);
-        osc2.stop(now + 0.25);
-      }
-
-      // Close audio context after sound completes to prevent memory leak
-      setTimeout(() => {
-        audioContext.close();
-      }, 500);
-    } catch (error) {
-      console.log('[Claude Track] Sound notification error:', error);
-    }
   }
 
   function showBanner(message, type = 'info', duration = 5000, title = null) {
