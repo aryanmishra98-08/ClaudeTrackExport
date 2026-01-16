@@ -21,9 +21,7 @@
     settings: {
       autoRefresh: true,
       copyToClipboard: true,
-      autoOpenNewChat: true,
-      showNotifications: true,
-      playSoundNotifications: true
+      showNotifications: true
     },
     // Cleanup tracking to prevent memory leaks
     observers: {
@@ -46,9 +44,7 @@
       const settings = result.claude_track_export_settings || {
         autoRefresh: true,
         copyToClipboard: true,
-        autoOpenNewChat: true,
-        showNotifications: true,
-        playSoundNotifications: true
+        showNotifications: true
       };
       state.settings = settings;
       console.log('[Claude Track] Settings loaded:', settings);
@@ -298,30 +294,39 @@
       if (state.settings.copyToClipboard) {
         await copyToClipboard(markdown);
       }
-      
-      // Log export to background script for metrics tracking
-      chrome.runtime.sendMessage({
-        type: 'LOG_EXPORT',
-        data: {
-          conversationId,
-          conversationName: conversation.name,
-          messageCount: messages.length,
-          timestamp: Date.now()
+
+      // Export succeeded - log metrics (but don't fail if extension context is invalid)
+      try {
+        if (chrome.runtime?.id) {
+          chrome.runtime.sendMessage({
+            type: 'LOG_EXPORT',
+            data: {
+              conversationId,
+              conversationName: conversation.name,
+              messageCount: messages.length,
+              timestamp: Date.now()
+            }
+          }, (response) => {
+            if (chrome.runtime.lastError) {
+              console.log('[Claude Track] Export metric logging error:', chrome.runtime.lastError);
+            } else if (response && response.success) {
+              console.log('[Claude Track] Export logged to metrics');
+            }
+          });
         }
-      }, (response) => {
-        if (chrome.runtime.lastError) {
-          console.log('[Claude Track] Export metric logging error:', chrome.runtime.lastError);
-        } else if (response && response.success) {
-          console.log('[Claude Track] Export logged to metrics');
-        }
-      });
-      
+      } catch (metricsError) {
+        // Silently fail metrics logging - export already succeeded
+        console.log('[Claude Track] Could not log export metrics:', metricsError);
+      }
+
       // Success - no notification
     } catch (error) {
       console.error('[Claude Track] Export error:', error);
       showModal('Export Failed', `An error occurred while exporting: ${error.message}`);
-      // Send browser notification for export error
-      sendBrowserNotification('Export Failed', 'An error occurred while exporting the conversation', 1);
+      // Send browser notification for export error (only if context is valid)
+      if (chrome.runtime?.id) {
+        sendBrowserNotification('Export Failed', 'An error occurred while exporting the conversation', 1);
+      }
     } finally {
       btns.forEach(btn => {
         btn.disabled = false;
@@ -539,83 +544,28 @@
 
   function sendBrowserNotification(title, message, priority = 0) {
     // Send browser notification via background service worker
-    chrome.runtime.sendMessage({
-      type: 'SEND_NOTIFICATION',
-      data: {
-        title,
-        message,
-        priority
-      }
-    }, (response) => {
-      if (chrome.runtime.lastError) {
-        console.log('[Claude Track] Notification error:', chrome.runtime.lastError);
-      } else if (response && response.success) {
-        console.log('[Claude Track] Browser notification sent');
-      }
-    });
-  }
-
-  function playSound(type = 'success') {
-    // Check if sound notifications are enabled
-    if (!state.settings.playSoundNotifications) {
-      return;
-    }
-
-    // Use Web Audio API to create sound notifications
     try {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const now = audioContext.currentTime;
-
-      if (type === 'success') {
-        // Success: Two ascending beeps
-        const osc1 = audioContext.createOscillator();
-        const gain1 = audioContext.createGain();
-        osc1.connect(gain1);
-        gain1.connect(audioContext.destination);
-        osc1.frequency.setValueAtTime(800, now);
-        gain1.gain.setValueAtTime(0.3, now);
-        gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-        osc1.start(now);
-        osc1.stop(now + 0.1);
-
-        const osc2 = audioContext.createOscillator();
-        const gain2 = audioContext.createGain();
-        osc2.connect(gain2);
-        gain2.connect(audioContext.destination);
-        osc2.frequency.setValueAtTime(1000, now + 0.15);
-        gain2.gain.setValueAtTime(0.3, now + 0.15);
-        gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
-        osc2.start(now + 0.15);
-        osc2.stop(now + 0.25);
-      } else if (type === 'error') {
-        // Error: Two descending beeps
-        const osc1 = audioContext.createOscillator();
-        const gain1 = audioContext.createGain();
-        osc1.connect(gain1);
-        gain1.connect(audioContext.destination);
-        osc1.frequency.setValueAtTime(600, now);
-        gain1.gain.setValueAtTime(0.3, now);
-        gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-        osc1.start(now);
-        osc1.stop(now + 0.1);
-
-        const osc2 = audioContext.createOscillator();
-        const gain2 = audioContext.createGain();
-        osc2.connect(gain2);
-        gain2.connect(audioContext.destination);
-        osc2.frequency.setValueAtTime(400, now + 0.15);
-        gain2.gain.setValueAtTime(0.3, now + 0.15);
-        gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
-        osc2.start(now + 0.15);
-        osc2.stop(now + 0.25);
+      if (!chrome.runtime?.id) {
+        console.log('[Claude Track] Cannot send notification - extension context invalid');
+        return;
       }
 
-      // Close audio context after sound completes to prevent memory leak
-      setTimeout(() => {
-        audioContext.close();
-      }, 500);
+      chrome.runtime.sendMessage({
+        type: 'SEND_NOTIFICATION',
+        data: {
+          title,
+          message,
+          priority
+        }
+      }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.log('[Claude Track] Notification error:', chrome.runtime.lastError);
+        } else if (response && response.success) {
+          console.log('[Claude Track] Browser notification sent');
+        }
+      });
     } catch (error) {
-      console.log('[Claude Track] Sound notification error:', error);
+      console.log('[Claude Track] Cannot send notification:', error);
     }
   }
 
@@ -831,17 +781,23 @@
         await fetchUsageData();
         updatePanelUI();
         refreshBtn.classList.remove('cte-spinning');
-        
+
         // Log manual refresh to background script for metrics tracking
-        chrome.runtime.sendMessage({
-          type: 'LOG_REFRESH'
-        }, (response) => {
-          if (chrome.runtime.lastError) {
-            console.log('[Claude Track] Refresh metric logging error:', chrome.runtime.lastError);
-          } else if (response && response.success) {
-            console.log('[Claude Track] Manual refresh logged to metrics');
+        try {
+          if (chrome.runtime?.id) {
+            chrome.runtime.sendMessage({
+              type: 'LOG_REFRESH'
+            }, (response) => {
+              if (chrome.runtime.lastError) {
+                console.log('[Claude Track] Refresh metric logging error:', chrome.runtime.lastError);
+              } else if (response && response.success) {
+                console.log('[Claude Track] Manual refresh logged to metrics');
+              }
+            });
           }
-        });
+        } catch (metricsError) {
+          console.log('[Claude Track] Could not log refresh metrics:', metricsError);
+        }
       });
       updateRefreshButtonState(refreshBtn);
     }
@@ -936,15 +892,21 @@
       updatePanelUI();
 
       // Log auto-refresh to background script for metrics tracking
-      chrome.runtime.sendMessage({
-        type: 'LOG_REFRESH'
-      }, (response) => {
-        if (chrome.runtime.lastError) {
-          console.log('[Claude Track] Auto-refresh metric logging error:', chrome.runtime.lastError);
-        } else if (response && response.success) {
-          console.log('[Claude Track] Auto-refresh logged to metrics');
+      try {
+        if (chrome.runtime?.id) {
+          chrome.runtime.sendMessage({
+            type: 'LOG_REFRESH'
+          }, (response) => {
+            if (chrome.runtime.lastError) {
+              console.log('[Claude Track] Auto-refresh metric logging error:', chrome.runtime.lastError);
+            } else if (response && response.success) {
+              console.log('[Claude Track] Auto-refresh logged to metrics');
+            }
+          });
         }
-      });
+      } catch (metricsError) {
+        console.log('[Claude Track] Could not log refresh metrics:', metricsError);
+      }
     }, CONFIG.REFRESH_INTERVAL);
   }
 

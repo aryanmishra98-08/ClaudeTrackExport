@@ -14,10 +14,8 @@ const STORAGE_KEYS = {
 // Default settings
 const DEFAULT_SETTINGS = {
   autoRefresh: true,
-  autoOpenNewChat: true,
   copyToClipboard: true,
-  showNotifications: true,
-  playSoundNotifications: true
+  showNotifications: true
 };
 
 // Initialize extension on install
