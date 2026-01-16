@@ -294,30 +294,39 @@
       if (state.settings.copyToClipboard) {
         await copyToClipboard(markdown);
       }
-      
-      // Log export to background script for metrics tracking
-      chrome.runtime.sendMessage({
-        type: 'LOG_EXPORT',
-        data: {
-          conversationId,
-          conversationName: conversation.name,
-          messageCount: messages.length,
-          timestamp: Date.now()
+
+      // Export succeeded - log metrics (but don't fail if extension context is invalid)
+      try {
+        if (chrome.runtime?.id) {
+          chrome.runtime.sendMessage({
+            type: 'LOG_EXPORT',
+            data: {
+              conversationId,
+              conversationName: conversation.name,
+              messageCount: messages.length,
+              timestamp: Date.now()
+            }
+          }, (response) => {
+            if (chrome.runtime.lastError) {
+              console.log('[Claude Track] Export metric logging error:', chrome.runtime.lastError);
+            } else if (response && response.success) {
+              console.log('[Claude Track] Export logged to metrics');
+            }
+          });
         }
-      }, (response) => {
-        if (chrome.runtime.lastError) {
-          console.log('[Claude Track] Export metric logging error:', chrome.runtime.lastError);
-        } else if (response && response.success) {
-          console.log('[Claude Track] Export logged to metrics');
-        }
-      });
-      
+      } catch (metricsError) {
+        // Silently fail metrics logging - export already succeeded
+        console.log('[Claude Track] Could not log export metrics:', metricsError);
+      }
+
       // Success - no notification
     } catch (error) {
       console.error('[Claude Track] Export error:', error);
       showModal('Export Failed', `An error occurred while exporting: ${error.message}`);
-      // Send browser notification for export error
-      sendBrowserNotification('Export Failed', 'An error occurred while exporting the conversation', 1);
+      // Send browser notification for export error (only if context is valid)
+      if (chrome.runtime?.id) {
+        sendBrowserNotification('Export Failed', 'An error occurred while exporting the conversation', 1);
+      }
     } finally {
       btns.forEach(btn => {
         btn.disabled = false;
@@ -535,20 +544,29 @@
 
   function sendBrowserNotification(title, message, priority = 0) {
     // Send browser notification via background service worker
-    chrome.runtime.sendMessage({
-      type: 'SEND_NOTIFICATION',
-      data: {
-        title,
-        message,
-        priority
+    try {
+      if (!chrome.runtime?.id) {
+        console.log('[Claude Track] Cannot send notification - extension context invalid');
+        return;
       }
-    }, (response) => {
-      if (chrome.runtime.lastError) {
-        console.log('[Claude Track] Notification error:', chrome.runtime.lastError);
-      } else if (response && response.success) {
-        console.log('[Claude Track] Browser notification sent');
-      }
-    });
+
+      chrome.runtime.sendMessage({
+        type: 'SEND_NOTIFICATION',
+        data: {
+          title,
+          message,
+          priority
+        }
+      }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.log('[Claude Track] Notification error:', chrome.runtime.lastError);
+        } else if (response && response.success) {
+          console.log('[Claude Track] Browser notification sent');
+        }
+      });
+    } catch (error) {
+      console.log('[Claude Track] Cannot send notification:', error);
+    }
   }
 
   function showBanner(message, type = 'info', duration = 5000, title = null) {
@@ -763,17 +781,23 @@
         await fetchUsageData();
         updatePanelUI();
         refreshBtn.classList.remove('cte-spinning');
-        
+
         // Log manual refresh to background script for metrics tracking
-        chrome.runtime.sendMessage({
-          type: 'LOG_REFRESH'
-        }, (response) => {
-          if (chrome.runtime.lastError) {
-            console.log('[Claude Track] Refresh metric logging error:', chrome.runtime.lastError);
-          } else if (response && response.success) {
-            console.log('[Claude Track] Manual refresh logged to metrics');
+        try {
+          if (chrome.runtime?.id) {
+            chrome.runtime.sendMessage({
+              type: 'LOG_REFRESH'
+            }, (response) => {
+              if (chrome.runtime.lastError) {
+                console.log('[Claude Track] Refresh metric logging error:', chrome.runtime.lastError);
+              } else if (response && response.success) {
+                console.log('[Claude Track] Manual refresh logged to metrics');
+              }
+            });
           }
-        });
+        } catch (metricsError) {
+          console.log('[Claude Track] Could not log refresh metrics:', metricsError);
+        }
       });
       updateRefreshButtonState(refreshBtn);
     }
@@ -868,15 +892,21 @@
       updatePanelUI();
 
       // Log auto-refresh to background script for metrics tracking
-      chrome.runtime.sendMessage({
-        type: 'LOG_REFRESH'
-      }, (response) => {
-        if (chrome.runtime.lastError) {
-          console.log('[Claude Track] Auto-refresh metric logging error:', chrome.runtime.lastError);
-        } else if (response && response.success) {
-          console.log('[Claude Track] Auto-refresh logged to metrics');
+      try {
+        if (chrome.runtime?.id) {
+          chrome.runtime.sendMessage({
+            type: 'LOG_REFRESH'
+          }, (response) => {
+            if (chrome.runtime.lastError) {
+              console.log('[Claude Track] Auto-refresh metric logging error:', chrome.runtime.lastError);
+            } else if (response && response.success) {
+              console.log('[Claude Track] Auto-refresh logged to metrics');
+            }
+          });
         }
-      });
+      } catch (metricsError) {
+        console.log('[Claude Track] Could not log refresh metrics:', metricsError);
+      }
     }, CONFIG.REFRESH_INTERVAL);
   }
 
