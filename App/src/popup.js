@@ -152,28 +152,46 @@ function attachEventListeners() {
   if (clearDataBtn) {
     clearDataBtn.addEventListener('click', async () => {
       if (confirm('Are you sure you want to clear all local data? This will reset your export history and settings.')) {
+        const originalText = clearDataBtn.textContent;
+        clearDataBtn.disabled = true;
+        clearDataBtn.textContent = 'Clearing...';
+
         try {
           await chrome.storage.local.clear();
-          
+
           // Reinitialize with defaults
           await chrome.storage.local.set({
             claude_track_export_settings: {
               autoRefresh: true,
               copyToClipboard: true,
               autoOpenNewChat: true,
-              showNotifications: true
+              showNotifications: true,
+              playSoundNotifications: true
             },
-            claude_track_export_history: []
+            claude_track_export_history: [],
+            claude_track_export_session_metrics: {
+              totalRefreshes: 0,
+              totalExports: 0,
+              lastRefreshTime: null
+            }
           });
-          
+
           // Reload UI
           await loadSettings();
           await loadStats();
-          
-          alert('Data cleared successfully!');
+
+          clearDataBtn.textContent = '✓ Cleared';
+          setTimeout(() => {
+            clearDataBtn.textContent = originalText;
+            clearDataBtn.disabled = false;
+          }, 2000);
         } catch (error) {
           console.error('Error clearing data:', error);
-          alert('Failed to clear data. Please try again.');
+          clearDataBtn.textContent = '✗ Failed';
+          setTimeout(() => {
+            clearDataBtn.textContent = originalText;
+            clearDataBtn.disabled = false;
+          }, 2000);
         }
       }
     });

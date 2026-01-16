@@ -87,18 +87,41 @@
   // ============================================
   // API Functions
   // ============================================
-  async function fetchWithAuth(url) {
-    try {
-      const response = await fetch(url, {
-        credentials: 'include',
-        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return await response.json();
-    } catch (error) {
-      console.error('[Claude Track] Fetch error:', error);
-      return null;
+  async function fetchWithAuth(url, maxRetries = 2) {
+    let lastError = null;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetch(url, {
+          credentials: 'include', // Required to send cookies for authentication
+          headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) {
+          // Don't retry on 4xx errors (client errors like 401, 403, 404)
+          if (response.status >= 400 && response.status < 500) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        return await response.json();
+      } catch (error) {
+        lastError = error;
+        console.error(`[Claude Track] Fetch error (attempt ${attempt + 1}/${maxRetries + 1}):`, error);
+
+        // If this wasn't the last attempt and it's a network error, wait before retrying
+        if (attempt < maxRetries && error.message.includes('Failed to fetch')) {
+          const delay = Math.pow(2, attempt) * 1000; // Exponential backoff: 1s, 2s
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else if (attempt < maxRetries) {
+          // For other errors, don't retry
+          break;
+        }
+      }
     }
+
+    return null;
   }
 
   async function getOrganizationId() {
@@ -160,28 +183,64 @@
   }
 
   function extractMessages(conversation) {
-    if (!conversation || !conversation.chat_messages) return [];
-    return conversation.chat_messages.map(msg => ({
-      role: msg.sender === 'human' ? 'user' : 'assistant',
-      content: msg.text || '',
-      timestamp: msg.created_at
-    }));
+    // Validate conversation data structure
+    if (!conversation || typeof conversation !== 'object') {
+      console.error('[Claude Track] Invalid conversation object');
+      return [];
+    }
+
+    if (!Array.isArray(conversation.chat_messages)) {
+      console.error('[Claude Track] Missing or invalid chat_messages array');
+      return [];
+    }
+
+    return conversation.chat_messages
+      .filter(msg => msg && typeof msg === 'object')
+      .map(msg => ({
+        role: msg.sender === 'human' ? 'user' : 'assistant',
+        content: msg.text || '',
+        timestamp: msg.created_at || null
+      }));
   }
 
   function convertToMarkdown(messages, conversationName) {
     const title = conversationName || document.title.replace(' - Claude', '').trim() || 'Claude Conversation';
+    // Use local timezone for export timestamp
     const date = new Date().toISOString().split('T')[0];
     const time = new Date().toLocaleTimeString();
-    
+
     let markdown = `# ${title}\n\n**Exported:** ${date} at ${time}\n**Messages:** ${messages.length}\n\n---\n\n`;
-    
+
     messages.forEach((msg, index) => {
       const role = msg.role === 'user' ? '👤 **User**' : '🤖 **Claude**';
       markdown += `### ${role}\n\n${msg.content}\n\n`;
       if (index < messages.length - 1) markdown += `---\n\n`;
     });
-    
+
     return markdown;
+  }
+
+  function sanitizeFilename(name) {
+    if (!name || typeof name !== 'string') {
+      return 'conversation';
+    }
+
+    // Remove or replace invalid filename characters
+    let sanitized = name
+      .replace(/[<>:"/\\|?*\x00-\x1F]/g, '') // Remove invalid chars
+      .replace(/\s+/g, '_')  // Replace spaces with underscores
+      .replace(/_{2,}/g, '_') // Replace multiple underscores with single
+      .replace(/^[._]+/, '')  // Remove leading dots/underscores
+      .replace(/[._]+$/, '')  // Remove trailing dots/underscores
+      .toLowerCase();
+
+    // Limit length to avoid filesystem issues
+    if (sanitized.length > 200) {
+      sanitized = sanitized.substring(0, 200);
+    }
+
+    // Ensure we have a valid filename
+    return sanitized || 'conversation';
   }
 
   function downloadMarkdown(content, filename) {
@@ -232,8 +291,8 @@
       }
 
       const markdown = convertToMarkdown(messages, conversation.name);
-      const title = (conversation.name || 'conversation').replace(/[^a-z0-9]/gi, '_').toLowerCase();
-      downloadMarkdown(markdown, `claude_${title}_${Date.now()}.md`);
+      const sanitizedTitle = sanitizeFilename(conversation.name || 'conversation');
+      downloadMarkdown(markdown, `claude_${sanitizedTitle}_${Date.now()}.md`);
 
       // Only copy to clipboard if setting is enabled
       if (state.settings.copyToClipboard) {
@@ -381,6 +440,11 @@
   }
 
   function createModal() {
+    // Don't create duplicate modals
+    if (document.getElementById('cte-modal-overlay')) {
+      return;
+    }
+
     const modal = document.createElement('div');
     modal.id = 'cte-modal-overlay';
     modal.className = 'cte-modal-overlay';
@@ -397,11 +461,11 @@
       </div>
     `;
     document.body.appendChild(modal);
-    
+
     // Close button handler
     document.getElementById('cte-modal-close').addEventListener('click', closeModal);
     document.getElementById('cte-modal-ok').addEventListener('click', closeModal);
-    
+
     // Close on backdrop click
     modal.addEventListener('click', (e) => {
       if (e.target === modal) closeModal();
@@ -412,13 +476,9 @@
     const data = state.usageData;
     if (!data) return;
 
-    const usageBars = document.getElementById('cte-usage-bars');
-    if (usageBars) {
-      usageBars.innerHTML = `
-        ${createUsageBar(data.sessionLimit, 'cte-session')}
-        ${createUsageBar(data.weeklyLimit, 'cte-weekly')}
-      `;
-    }
+    // Efficiently update individual elements instead of replacing entire innerHTML
+    updateUsageItem('cte-session', data.sessionLimit);
+    updateUsageItem('cte-weekly', data.weeklyLimit);
 
     // Update mini indicators
     const miniDots = document.querySelectorAll('.cte-mini-dot');
@@ -432,6 +492,29 @@
     const refreshText = document.getElementById('cte-refresh-text');
     if (refreshText && state.lastRefresh) {
       refreshText.textContent = `Updated ${state.lastRefresh.toLocaleTimeString()}`;
+    }
+  }
+
+  function updateUsageItem(id, data) {
+    const item = document.getElementById(id);
+    if (!item) return;
+
+    const percentage = data.utilization;
+    const color = getProgressColor(percentage);
+    const resetInfo = data.resetTime ? formatTimeRemaining(data.resetTime) : '';
+
+    // Update only the specific elements that changed
+    const valueSpan = item.querySelector('.cte-usage-value');
+    const progressFill = item.querySelector('.cte-progress-fill');
+    const detailDiv = item.querySelector('.cte-usage-detail');
+
+    if (valueSpan) valueSpan.textContent = `${percentage}%`;
+    if (progressFill) {
+      progressFill.style.width = `${percentage}%`;
+      progressFill.style.backgroundColor = color;
+    }
+    if (detailDiv) {
+      detailDiv.textContent = `${percentage}% used ${resetInfo ? `• ${resetInfo}` : ''}`;
     }
   }
 
@@ -843,9 +926,15 @@
 
     if (state.refreshTimer) clearInterval(state.refreshTimer);
     state.refreshTimer = setInterval(async () => {
+      // Skip refresh if tab is hidden to save resources
+      if (document.hidden) {
+        console.log('[Claude Track] Skipping auto-refresh (tab hidden)');
+        return;
+      }
+
       await fetchUsageData();
       updatePanelUI();
-      
+
       // Log auto-refresh to background script for metrics tracking
       chrome.runtime.sendMessage({
         type: 'LOG_REFRESH'
@@ -925,18 +1014,29 @@
   async function initialize() {
     console.log('[Claude Track] Initializing...');
 
+    // Wait for document to be fully loaded
     if (document.readyState !== 'complete') {
       await new Promise(resolve => window.addEventListener('load', resolve, { once: true }));
     }
 
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // ENFORCE: Load settings first to initialize state
+    // Wait for Claude's interface to be ready by checking for key elements
+    let attempts = 0;
+    const maxAttempts = 20; // 10 seconds max wait
+    while (attempts < maxAttempts && !document.querySelector('nav')) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      attempts++;
+    }
+
+    if (attempts >= maxAttempts) {
+      console.warn('[Claude Track] Claude interface not detected, proceeding anyway');
+    }
+
+    // Load settings first to initialize state
     await loadSettings();
-    
+
     // Create modal element
     createModal();
-    
+
     await fetchUsageData();
     injectPanel();
     startRefreshTimer();

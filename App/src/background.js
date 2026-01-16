@@ -80,9 +80,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     case 'SEND_NOTIFICATION':
       handleSendNotification(message.data, sendResponse);
       return true;
-      
+
     default:
       sendResponse({ success: false, error: 'Unknown message type' });
+      return true; // Keep channel open for async response
   }
 });
 
@@ -217,7 +218,7 @@ async function handleSendNotification(data, sendResponse) {
   try {
     const settingsResult = await chrome.storage.local.get(STORAGE_KEYS.SETTINGS);
     const settings = settingsResult[STORAGE_KEYS.SETTINGS] || DEFAULT_SETTINGS;
-    
+
     // Only send notification if setting is enabled
     if (settings.showNotifications) {
       chrome.notifications.create({
@@ -226,9 +227,18 @@ async function handleSendNotification(data, sendResponse) {
         title: data.title || 'Claude Track & Export',
         message: data.message || '',
         priority: data.priority || 0
+      }, (notificationId) => {
+        if (chrome.runtime.lastError) {
+          console.error('[Claude Track] Error creating notification:', chrome.runtime.lastError);
+          sendResponse({ success: false, error: chrome.runtime.lastError.message });
+        } else {
+          console.log('[Claude Track] Notification created:', notificationId);
+          sendResponse({ success: true, notificationId });
+        }
       });
+    } else {
+      sendResponse({ success: true, skipped: true });
     }
-    sendResponse({ success: true });
   } catch (error) {
     console.error('[Claude Track] Error sending notification:', error);
     sendResponse({ success: false, error: error.message });
