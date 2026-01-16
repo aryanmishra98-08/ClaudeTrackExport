@@ -52,6 +52,9 @@
   position: relative;
   overflow: hidden;
   transition: var(--cte-transition);
+  max-height: 100vh; /* Never exceed viewport height */
+  display: flex;
+  flex-direction: column;
 }
 
 .cte-panel-floating {
@@ -78,6 +81,10 @@
   padding: 12px;
   opacity: 1;
   transition: var(--cte-transition);
+  overflow-y: auto; /* Enable scrolling if content overflows */
+  overflow-x: hidden;
+  max-height: 100%; /* Don't exceed parent */
+  flex: 1; /* Take available space */
 }
 
 /* Sidebar Collapsed: Show icon only */
@@ -696,4 +703,73 @@
     right: 10px;
     bottom: 10px;
   }
+}
+
+/* ============================================
+   Responsive Height Adjustments
+   ============================================ */
+/* For screens shorter than 800px */
+@media (max-height: 800px) {
+  .cte-panel {
+    max-height: 50vh; /* Use only half the viewport on short screens */
+  }
+
+  .cte-expanded-view {
+    padding: 10px; /* Reduce padding */
+  }
+
+  .cte-panel-content {
+    gap: 10px; /* Reduce gap between sections */
+  }
+
+  .cte-usage-bars {
+    gap: 8px; /* Tighter spacing */
+  }
+}
+
+/* For very short screens (mobile landscape, small windows) */
+@media (max-height: 600px) {
+  .cte-panel {
+    max-height: 40vh; /* Even less space on very short screens */
+  }
+
+  .cte-expanded-view {
+    padding: 8px;
+  }
+
+  .cte-panel-content {
+    gap: 8px;
+  }
+
+  .cte-usage-bars {
+    gap: 6px;
+  }
+
+  .cte-section {
+    gap: 6px;
+  }
+
+  .cte-export-btn {
+    padding: 8px 12px; /* Smaller button padding */
+    font-size: 12px;
+  }
+}
+
+/* Ensure scrollbar is visible when needed */
+.cte-expanded-view::-webkit-scrollbar {
+  width: 6px;
+}
+
+.cte-expanded-view::-webkit-scrollbar-track {
+  background: var(--cte-bg-secondary);
+  border-radius: 3px;
+}
+
+.cte-expanded-view::-webkit-scrollbar-thumb {
+  background: var(--cte-border);
+  border-radius: 3px;
+}
+
+.cte-expanded-view::-webkit-scrollbar-thumb:hover {
+  background: var(--cte-text-muted);
 }
