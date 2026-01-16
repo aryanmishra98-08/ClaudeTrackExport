@@ -34,14 +34,14 @@ Track your Claude usage limits in real-time and export conversations with one cl
 
 1. **Clone or download** this repository:
    ```bash
-   git clone https://github.com/yourusername/claude-track-export.git
+   git clone https://github.com/yourusername/ChatExpoter.git
    ```
 
 2. **Open Chrome** → `chrome://extensions/`
 
 3. **Enable Developer Mode** (toggle in top-right)
 
-4. **Click "Load unpacked"** → select the `claude-track-export` folder
+4. **Click "Load unpacked"** → select the `App` folder
 
 5. **Visit** [claude.ai](https://claude.ai) - panel appears automatically in sidebar
 
@@ -110,21 +110,23 @@ Claude's response here...
 ### File Structure
 
 ```
-claude-track-export/
-├── manifest.json        # Extension manifest (v3)
-├── icons/              # Extension icons
-│   ├── icon16.png
-│   ├── icon32.png
-│   ├── icon48.png
-│   └── icon128.png
-├── src/
-│   ├── content.js      # Main content script
-│   ├── styles.css      # Panel styles
-│   ├── background.js   # Service worker
-│   ├── popup.html      # Toolbar popup
-│   ├── popup.js        # Popup logic
-│   └── injected.js     # Network interceptor
-└── README.md
+ChatExpoter/
+├── LICENSE             # MIT License
+├── README.md           # Documentation
+└── App/
+    ├── manifest.json        # Extension manifest (v3)
+    ├── icons/              # Extension icons
+    │   ├── icon16.png
+    │   ├── icon32.png
+    │   ├── icon48.png
+    │   └── icon128.png
+    └── src/
+        ├── background.js   # Service worker
+        ├── content.js      # Main content script
+        ├── injected.js     # Network interceptor
+        ├── popup.html      # Toolbar popup
+        ├── popup.js        # Popup logic
+        └── styles.css      # Panel styles
 ```
 
 ### Permissions
