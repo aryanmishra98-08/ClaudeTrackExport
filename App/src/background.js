@@ -17,6 +17,7 @@ const DEFAULT_SETTINGS = {
   autoOpenNewChat: true,
   copyToClipboard: true,
   showNotifications: true,
+  playSoundNotifications: true,
   theme: 'auto'
 };
 
@@ -75,6 +76,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       
     case 'CLEAR_DATA':
       handleClearData(sendResponse);
+      return true;
+      
+    case 'SEND_NOTIFICATION':
+      handleSendNotification(message.data, sendResponse);
       return true;
       
     default:
@@ -225,6 +230,28 @@ async function handleClearData(sendResponse) {
     sendResponse({ success: true });
   } catch (error) {
     console.error('[Claude Track] Error clearing data:', error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+async function handleSendNotification(data, sendResponse) {
+  try {
+    const settingsResult = await chrome.storage.local.get(STORAGE_KEYS.SETTINGS);
+    const settings = settingsResult[STORAGE_KEYS.SETTINGS] || DEFAULT_SETTINGS;
+    
+    // Only send notification if setting is enabled
+    if (settings.showNotifications) {
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icons/icon128.png',
+        title: data.title || 'Claude Track & Export',
+        message: data.message || '',
+        priority: data.priority || 0
+      });
+    }
+    sendResponse({ success: true });
+  } catch (error) {
+    console.error('[Claude Track] Error sending notification:', error);
     sendResponse({ success: false, error: error.message });
   }
 }

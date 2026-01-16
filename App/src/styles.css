@@ -399,6 +399,277 @@
 }
 
 /* ============================================
+   Banner Notifications
+   ============================================ */
+.cte-banner {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-120px);
+  z-index: 10002;
+  max-width: 500px;
+  width: calc(100% - 20px);
+  padding: 12px 16px;
+  border-radius: var(--cte-radius);
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  animation: cte-banner-slide-in 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.cte-banner-show {
+  animation: cte-banner-slide-in 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.cte-banner-hide {
+  animation: cte-banner-slide-out 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes cte-banner-slide-in {
+  from {
+    transform: translateX(-50%) translateY(-120px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes cte-banner-slide-out {
+  from {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-50%) translateY(-120px);
+    opacity: 0;
+  }
+}
+
+.cte-banner-success {
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid var(--cte-success);
+  color: var(--cte-success);
+}
+
+.cte-banner-error {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid var(--cte-danger);
+  color: var(--cte-danger);
+}
+
+.cte-banner-warning {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid var(--cte-warning);
+  color: var(--cte-warning);
+}
+
+.cte-banner-info {
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid var(--cte-info);
+  color: var(--cte-info);
+}
+
+.cte-banner-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cte-banner-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cte-banner-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.cte-banner-message {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.cte-banner-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+  flex-shrink: 0;
+}
+
+.cte-banner-close:hover {
+  opacity: 1;
+}
+
+/* ============================================
+   Modal Dialog
+   ============================================ */
+.cte-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 10003;
+  animation: cte-modal-fade-in 0.3s ease forwards;
+}
+
+.cte-modal-overlay.cte-modal-show {
+  display: flex;
+  animation: cte-modal-fade-in 0.3s ease forwards;
+}
+
+.cte-modal-overlay.cte-modal-hide {
+  animation: cte-modal-fade-out 0.3s ease forwards;
+}
+
+@keyframes cte-modal-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes cte-modal-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.cte-modal {
+  background: var(--cte-bg);
+  border: 1px solid var(--cte-border);
+  border-radius: var(--cte-radius);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4);
+  max-width: 450px;
+  width: 90%;
+  animation: cte-modal-slide-in 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.cte-modal-overlay.cte-modal-hide .cte-modal {
+  animation: cte-modal-slide-out 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes cte-modal-slide-in {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes cte-modal-slide-out {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+}
+
+.cte-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid var(--cte-border);
+}
+
+.cte-modal-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--cte-text);
+}
+
+.cte-modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--cte-text-secondary);
+  transition: color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.cte-modal-close:hover {
+  color: var(--cte-text);
+}
+
+.cte-modal-body {
+  padding: 16px;
+  color: var(--cte-text-secondary);
+  line-height: 1.6;
+  font-size: 13px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.cte-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--cte-border);
+}
+
+.cte-modal-button {
+  padding: 8px 16px;
+  border-radius: var(--cte-radius-sm);
+  border: 1px solid var(--cte-border);
+  background: var(--cte-bg-secondary);
+  color: var(--cte-text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--cte-transition);
+}
+
+.cte-modal-button:hover {
+  background: var(--cte-bg-tertiary);
+}
+
+.cte-modal-button-primary {
+  background: var(--cte-primary);
+  border-color: var(--cte-primary);
+  color: white;
+}
+
+.cte-modal-button-primary:hover {
+  background: var(--cte-primary-hover);
+  border-color: var(--cte-primary-hover);
+}
+
+/* ============================================
    Animations
    ============================================ */
 .cte-spinning svg,

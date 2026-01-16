@@ -22,7 +22,8 @@
       autoRefresh: true,
       copyToClipboard: true,
       autoOpenNewChat: true,
-      showNotifications: true
+      showNotifications: true,
+      playSoundNotifications: true
     }
   };
 
@@ -36,7 +37,8 @@
         autoRefresh: true,
         copyToClipboard: true,
         autoOpenNewChat: true,
-        showNotifications: true
+        showNotifications: true,
+        playSoundNotifications: true
       };
       state.settings = settings;
       console.log('[Claude Track] Settings loaded:', settings);
@@ -198,13 +200,13 @@
     // If copyToClipboard is disabled AND we need to check export separately
     // For now, we'll treat it as: export includes clipboard copy
     if (!settings.copyToClipboard) {
-      showNotification('Export is disabled in settings', 'error');
+      showModal('Export Disabled', 'Export is disabled in settings');
       return;
     }
 
     const conversationId = getCurrentConversationId();
     if (!conversationId) {
-      showNotification('No conversation open', 'error');
+      showModal('Export Failed', 'Please open a conversation to export it.');
       return;
     }
 
@@ -217,13 +219,13 @@
     try {
       const conversation = await fetchConversation(conversationId);
       if (!conversation) {
-        showNotification('Failed to fetch', 'error');
+        showModal('Export Failed', 'Unable to retrieve conversation data from the server.');
         return;
       }
 
       const messages = extractMessages(conversation);
       if (messages.length === 0) {
-        showNotification('No messages', 'error');
+        showModal('Export Failed', 'This conversation has no messages to export.');
         return;
       }
 
@@ -253,9 +255,12 @@
         }
       });
       
-      showNotification(`Exported ${messages.length} msgs`, 'success');
+      // Success - no notification
     } catch (error) {
-      showNotification('Export failed', 'error');
+      console.error('[Claude Track] Export error:', error);
+      showModal('Export Failed', `An error occurred while exporting: ${error.message}`);
+      // Send browser notification for export error
+      sendBrowserNotification('Export Failed', 'An error occurred while exporting the conversation', 1);
     } finally {
       btns.forEach(btn => {
         btn.disabled = false;
@@ -361,6 +366,7 @@
       </div>
       
       <div class="cte-notification" id="cte-notification"></div>
+      <div class="cte-banner" id="cte-banner"></div>
     `;
   }
 
@@ -372,39 +378,39 @@
     return panel;
   }
 
-  function updatePanelUI() {
-    const data = state.usageData;
-    if (!data) return;
-
-    const usageBars = document.getElementById('cte-usage-bars');
-    if (usageBars) {
-      usageBars.innerHTML = `
-        ${createUsageBar(data.sessionLimit, 'cte-session')}
-        ${createUsageBar(data.weeklyLimit, 'cte-weekly')}
-      `;
-    }
-
-    // Update mini indicators
-    const miniDots = document.querySelectorAll('.cte-mini-dot');
-    if (miniDots.length >= 2) {
-      miniDots[0].style.backgroundColor = getProgressColor(data.sessionLimit.utilization);
-      miniDots[0].title = `5H: ${data.sessionLimit.utilization}%`;
-      miniDots[1].style.backgroundColor = getProgressColor(data.weeklyLimit.utilization);
-      miniDots[1].title = `7D: ${data.weeklyLimit.utilization}%`;
-    }
-
-    const refreshText = document.getElementById('cte-refresh-text');
-    if (refreshText && state.lastRefresh) {
-      refreshText.textContent = `Updated ${state.lastRefresh.toLocaleTimeString()}`;
-    }
-  }
-
-  function showNotification(message, type = 'info') {
-    const notification = document.getElementById('cte-notification');
-    if (!notification) return;
-    notification.className = `cte-notification cte-notification-${type} cte-notification-show`;
-    notification.textContent = message;
-    setTimeout(() => notification.classList.remove('cte-notification-show'), 3000);
+  function createModal() {
+    const modal = document.createElement('div');
+    modal.id = 'cte-modal-overlay';
+    modal.className = 'cte-modal-overlay';
+    modal.innerHTML = `
+      <div class="cte-modal">
+        <div class="cte-modal-header">
+          <h2 id="cte-modal-title"></h2>
+          <button class="cte-modal-close" id="cte-modal-close">&times;</button>
+        </div>
+        <div class="cte-modal-body" id="cte-modal-body"></div>
+        <div class="cte-modal-footer">
+          <button class="cte-modal-button cte-modal-button-primary" id="cte-modal-ok">OK</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    
+    // Close handlers
+    const closeModal = () => {
+      modal.classList.add('cte-modal-hide');
+      setTimeout(() => {
+        modal.classList.remove('cte-modal-show', 'cte-modal-hide');
+      }, 300);
+    };
+    
+    document.getElementById('cte-modal-close').addEventListener('click', closeModal);
+    document.getElementById('cte-modal-ok').addEventListener('click', closeModal);
+    
+    // Close on backdrop click
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
   }
 
   // ============================================
@@ -521,7 +527,7 @@
         // ENFORCE: Check if auto-refresh is enabled before allowing manual refresh
         const settings = await loadSettings();
         if (!settings.autoRefresh) {
-          showNotification('Auto-refresh is disabled in settings', 'error');
+          showModal('Refresh Disabled', 'Auto-refresh is disabled in settings');
           return;
         }
 
@@ -529,7 +535,6 @@
         await fetchUsageData();
         updatePanelUI();
         refreshBtn.classList.remove('cte-spinning');
-        showNotification('Refreshed', 'success');
         
         // Log manual refresh to background script for metrics tracking
         chrome.runtime.sendMessage({
@@ -687,6 +692,9 @@
     
     // ENFORCE: Load settings first to initialize state
     await loadSettings();
+    
+    // Create modal element
+    createModal();
     
     await fetchUsageData();
     injectPanel();
