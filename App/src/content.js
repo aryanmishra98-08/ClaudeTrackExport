@@ -198,6 +198,23 @@
       downloadMarkdown(markdown, `claude_${title}_${Date.now()}.md`);
       await copyToClipboard(markdown);
       
+      // Log export to background script for metrics tracking
+      chrome.runtime.sendMessage({
+        type: 'LOG_EXPORT',
+        data: {
+          conversationId,
+          conversationName: conversation.name,
+          messageCount: messages.length,
+          timestamp: Date.now()
+        }
+      }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.log('[Claude Track] Export metric logging error:', chrome.runtime.lastError);
+        } else if (response && response.success) {
+          console.log('[Claude Track] Export logged to metrics');
+        }
+      });
+      
       showNotification(`Exported ${messages.length} msgs`, 'success');
     } catch (error) {
       showNotification('Export failed', 'error');
@@ -468,6 +485,17 @@
         updatePanelUI();
         refreshBtn.classList.remove('cte-spinning');
         showNotification('Refreshed', 'success');
+        
+        // Log manual refresh to background script for metrics tracking
+        chrome.runtime.sendMessage({
+          type: 'LOG_REFRESH'
+        }, (response) => {
+          if (chrome.runtime.lastError) {
+            console.log('[Claude Track] Refresh metric logging error:', chrome.runtime.lastError);
+          } else if (response && response.success) {
+            console.log('[Claude Track] Manual refresh logged to metrics');
+          }
+        });
       });
     }
 
@@ -489,6 +517,17 @@
     state.refreshTimer = setInterval(async () => {
       await fetchUsageData();
       updatePanelUI();
+      
+      // Log auto-refresh to background script for metrics tracking
+      chrome.runtime.sendMessage({
+        type: 'LOG_REFRESH'
+      }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.log('[Claude Track] Auto-refresh metric logging error:', chrome.runtime.lastError);
+        } else if (response && response.success) {
+          console.log('[Claude Track] Auto-refresh logged to metrics');
+        }
+      });
     }, CONFIG.REFRESH_INTERVAL);
   }
 

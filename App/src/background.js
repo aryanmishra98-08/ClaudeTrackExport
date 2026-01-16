@@ -7,7 +7,8 @@
 const STORAGE_KEYS = {
   USAGE_DATA: 'claude_track_export_data',
   SETTINGS: 'claude_track_export_settings',
-  EXPORT_HISTORY: 'claude_track_export_history'
+  EXPORT_HISTORY: 'claude_track_export_history',
+  SESSION_METRICS: 'claude_track_export_session_metrics'
 };
 
 // Default settings
@@ -27,7 +28,12 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     // Set default settings
     await chrome.storage.local.set({
       [STORAGE_KEYS.SETTINGS]: DEFAULT_SETTINGS,
-      [STORAGE_KEYS.EXPORT_HISTORY]: []
+      [STORAGE_KEYS.EXPORT_HISTORY]: [],
+      [STORAGE_KEYS.SESSION_METRICS]: {
+        totalRefreshes: 0,
+        totalExports: 0,
+        lastRefreshTime: null
+      }
     });
     
     console.log('[Claude Track] Default settings initialized');
@@ -55,8 +61,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       handleLogExport(message.data, sendResponse);
       return true;
       
+    case 'LOG_REFRESH':
+      handleLogRefresh(sendResponse);
+      return true;
+      
     case 'GET_EXPORT_HISTORY':
       handleGetExportHistory(sendResponse);
+      return true;
+      
+    case 'GET_SESSION_METRICS':
+      handleGetSessionMetrics(sendResponse);
       return true;
       
     case 'CLEAR_DATA':
@@ -106,10 +120,46 @@ async function handleLogExport(data, sendResponse) {
       history.pop();
     }
     
-    await chrome.storage.local.set({ [STORAGE_KEYS.EXPORT_HISTORY]: history });
+    // Update session metrics
+    const metricsResult = await chrome.storage.local.get(STORAGE_KEYS.SESSION_METRICS);
+    const metrics = metricsResult[STORAGE_KEYS.SESSION_METRICS] || {
+      totalRefreshes: 0,
+      totalExports: 0,
+      lastRefreshTime: null
+    };
+    
+    metrics.totalExports += 1;
+    
+    await chrome.storage.local.set({ 
+      [STORAGE_KEYS.EXPORT_HISTORY]: history,
+      [STORAGE_KEYS.SESSION_METRICS]: metrics
+    });
     sendResponse({ success: true });
   } catch (error) {
     console.error('[Claude Track] Error logging export:', error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+async function handleLogRefresh(sendResponse) {
+  try {
+    const metricsResult = await chrome.storage.local.get(STORAGE_KEYS.SESSION_METRICS);
+    const metrics = metricsResult[STORAGE_KEYS.SESSION_METRICS] || {
+      totalRefreshes: 0,
+      totalExports: 0,
+      lastRefreshTime: null
+    };
+    
+    metrics.totalRefreshes += 1;
+    metrics.lastRefreshTime = Date.now();
+    
+    await chrome.storage.local.set({ 
+      [STORAGE_KEYS.SESSION_METRICS]: metrics
+    });
+    
+    sendResponse({ success: true, metrics });
+  } catch (error) {
+    console.error('[Claude Track] Error logging refresh:', error);
     sendResponse({ success: false, error: error.message });
   }
 }
@@ -125,12 +175,32 @@ async function handleGetExportHistory(sendResponse) {
   }
 }
 
+async function handleGetSessionMetrics(sendResponse) {
+  try {
+    const result = await chrome.storage.local.get(STORAGE_KEYS.SESSION_METRICS);
+    const metrics = result[STORAGE_KEYS.SESSION_METRICS] || {
+      totalRefreshes: 0,
+      totalExports: 0,
+      lastRefreshTime: null
+    };
+    sendResponse({ success: true, data: metrics });
+  } catch (error) {
+    console.error('[Claude Track] Error getting session metrics:', error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
 async function handleClearData(sendResponse) {
   try {
     await chrome.storage.local.clear();
     await chrome.storage.local.set({
       [STORAGE_KEYS.SETTINGS]: DEFAULT_SETTINGS,
-      [STORAGE_KEYS.EXPORT_HISTORY]: []
+      [STORAGE_KEYS.EXPORT_HISTORY]: [],
+      [STORAGE_KEYS.SESSION_METRICS]: {
+        totalRefreshes: 0,
+        totalExports: 0,
+        lastRefreshTime: null
+      }
     });
     sendResponse({ success: true });
   } catch (error) {
