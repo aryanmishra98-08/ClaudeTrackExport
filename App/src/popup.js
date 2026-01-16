@@ -42,12 +42,10 @@ async function loadSettings() {
     // Apply settings to toggles
     const autoRefresh = document.getElementById('setting-autorefresh');
     const clipboard = document.getElementById('setting-clipboard');
-    const newChat = document.getElementById('setting-newchat');
     const notifications = document.getElementById('setting-notifications');
-    
+
     if (autoRefresh) autoRefresh.checked = settings.autoRefresh !== false;
     if (clipboard) clipboard.checked = settings.copyToClipboard !== false;
-    if (newChat) newChat.checked = settings.autoOpenNewChat !== false;
     if (notifications) notifications.checked = settings.showNotifications !== false;
   } catch (error) {
     console.error('Error loading settings:', error);
@@ -59,34 +57,39 @@ async function loadStats() {
   try {
     const result = await chrome.storage.local.get([
       'claude_track_export_history',
-      'claude_track_export_data'
+      'claude_track_export_data',
+      'claude_track_export_session_metrics'
     ]);
     
-    // Update total exports
+    // Update total exports from export history
     const history = result.claude_track_export_history || [];
     const totalExports = document.getElementById('total-exports');
     if (totalExports) {
       totalExports.textContent = history.length.toString();
     }
     
+    // Update session metrics
+    const metrics = result.claude_track_export_session_metrics || {
+      totalRefreshes: 0,
+      totalExports: 0,
+      lastRefreshTime: null
+    };
+    
+    // Update total refreshes
+    const totalRefreshes = document.getElementById('total-refreshes');
+    if (totalRefreshes) {
+      totalRefreshes.textContent = metrics.totalRefreshes.toString();
+    }
+    
     // Update last refresh time
-    const data = result.claude_track_export_data;
     const lastRefresh = document.getElementById('last-refresh');
-    if (lastRefresh && data && data.lastRefresh) {
-      const date = new Date(data.lastRefresh);
-      const now = new Date();
-      const diffMs = now - date;
-      const diffMins = Math.floor(diffMs / 60000);
-      
-      if (diffMins < 1) {
-        lastRefresh.textContent = 'Just now';
-      } else if (diffMins < 60) {
-        lastRefresh.textContent = `${diffMins}m ago`;
-      } else {
+    if (lastRefresh) {
+      if (metrics.lastRefreshTime) {
+        const date = new Date(metrics.lastRefreshTime);
         lastRefresh.textContent = date.toLocaleTimeString();
+      } else {
+        lastRefresh.textContent = '--';
       }
-    } else {
-      lastRefresh.textContent = '--';
     }
   } catch (error) {
     console.error('Error loading stats:', error);
@@ -99,7 +102,6 @@ async function saveSettings() {
     const settings = {
       autoRefresh: document.getElementById('setting-autorefresh')?.checked ?? true,
       copyToClipboard: document.getElementById('setting-clipboard')?.checked ?? true,
-      autoOpenNewChat: document.getElementById('setting-newchat')?.checked ?? true,
       showNotifications: document.getElementById('setting-notifications')?.checked ?? true
     };
     
@@ -144,28 +146,44 @@ function attachEventListeners() {
   if (clearDataBtn) {
     clearDataBtn.addEventListener('click', async () => {
       if (confirm('Are you sure you want to clear all local data? This will reset your export history and settings.')) {
+        const originalText = clearDataBtn.textContent;
+        clearDataBtn.disabled = true;
+        clearDataBtn.textContent = 'Clearing...';
+
         try {
           await chrome.storage.local.clear();
-          
+
           // Reinitialize with defaults
           await chrome.storage.local.set({
             claude_track_export_settings: {
               autoRefresh: true,
               copyToClipboard: true,
-              autoOpenNewChat: true,
               showNotifications: true
             },
-            claude_track_export_history: []
+            claude_track_export_history: [],
+            claude_track_export_session_metrics: {
+              totalRefreshes: 0,
+              totalExports: 0,
+              lastRefreshTime: null
+            }
           });
-          
+
           // Reload UI
           await loadSettings();
           await loadStats();
-          
-          alert('Data cleared successfully!');
+
+          clearDataBtn.textContent = '✓ Cleared';
+          setTimeout(() => {
+            clearDataBtn.textContent = originalText;
+            clearDataBtn.disabled = false;
+          }, 2000);
         } catch (error) {
           console.error('Error clearing data:', error);
-          alert('Failed to clear data. Please try again.');
+          clearDataBtn.textContent = '✗ Failed';
+          setTimeout(() => {
+            clearDataBtn.textContent = originalText;
+            clearDataBtn.disabled = false;
+          }, 2000);
         }
       }
     });

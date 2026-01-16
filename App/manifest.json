@@ -7,7 +7,8 @@
   "permissions": [
     "storage",
     "clipboardWrite",
-    "tabs"
+    "tabs",
+    "notifications"
   ],
   "host_permissions": [
     "https://claude.ai/*",
@@ -31,19 +32,13 @@
   "content_scripts": [
     {
       "matches": ["https://claude.ai/*"],
+      "exclude_matches": ["https://claude.ai/code", "https://claude.ai/code/*"],
       "js": ["src/content.js"],
       "css": ["src/styles.css"],
       "run_at": "document_idle"
     }
   ],
   "background": {
-    "service_worker": "src/background.js",
-    "type": "module"
-  },
-  "web_accessible_resources": [
-    {
-      "resources": ["src/injected.js"],
-      "matches": ["https://claude.ai/*"]
-    }
-  ]
+    "service_worker": "src/background.js"
+  }
 }

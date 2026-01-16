@@ -7,16 +7,15 @@
 const STORAGE_KEYS = {
   USAGE_DATA: 'claude_track_export_data',
   SETTINGS: 'claude_track_export_settings',
-  EXPORT_HISTORY: 'claude_track_export_history'
+  EXPORT_HISTORY: 'claude_track_export_history',
+  SESSION_METRICS: 'claude_track_export_session_metrics'
 };
 
 // Default settings
 const DEFAULT_SETTINGS = {
-  refreshInterval: 30000,
-  autoOpenNewChat: true,
+  autoRefresh: true,
   copyToClipboard: true,
-  showNotifications: true,
-  theme: 'auto'
+  showNotifications: true
 };
 
 // Initialize extension on install
@@ -27,7 +26,12 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     // Set default settings
     await chrome.storage.local.set({
       [STORAGE_KEYS.SETTINGS]: DEFAULT_SETTINGS,
-      [STORAGE_KEYS.EXPORT_HISTORY]: []
+      [STORAGE_KEYS.EXPORT_HISTORY]: [],
+      [STORAGE_KEYS.SESSION_METRICS]: {
+        totalRefreshes: 0,
+        totalExports: 0,
+        lastRefreshTime: null
+      }
     });
     
     console.log('[Claude Track] Default settings initialized');
@@ -55,16 +59,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       handleLogExport(message.data, sendResponse);
       return true;
       
+    case 'LOG_REFRESH':
+      handleLogRefresh(sendResponse);
+      return true;
+      
     case 'GET_EXPORT_HISTORY':
       handleGetExportHistory(sendResponse);
+      return true;
+      
+    case 'GET_SESSION_METRICS':
+      handleGetSessionMetrics(sendResponse);
       return true;
       
     case 'CLEAR_DATA':
       handleClearData(sendResponse);
       return true;
       
+    case 'SEND_NOTIFICATION':
+      handleSendNotification(message.data, sendResponse);
+      return true;
+
     default:
       sendResponse({ success: false, error: 'Unknown message type' });
+      return true; // Keep channel open for async response
   }
 });
 
@@ -106,10 +123,46 @@ async function handleLogExport(data, sendResponse) {
       history.pop();
     }
     
-    await chrome.storage.local.set({ [STORAGE_KEYS.EXPORT_HISTORY]: history });
+    // Update session metrics
+    const metricsResult = await chrome.storage.local.get(STORAGE_KEYS.SESSION_METRICS);
+    const metrics = metricsResult[STORAGE_KEYS.SESSION_METRICS] || {
+      totalRefreshes: 0,
+      totalExports: 0,
+      lastRefreshTime: null
+    };
+    
+    metrics.totalExports += 1;
+    
+    await chrome.storage.local.set({ 
+      [STORAGE_KEYS.EXPORT_HISTORY]: history,
+      [STORAGE_KEYS.SESSION_METRICS]: metrics
+    });
     sendResponse({ success: true });
   } catch (error) {
     console.error('[Claude Track] Error logging export:', error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+async function handleLogRefresh(sendResponse) {
+  try {
+    const metricsResult = await chrome.storage.local.get(STORAGE_KEYS.SESSION_METRICS);
+    const metrics = metricsResult[STORAGE_KEYS.SESSION_METRICS] || {
+      totalRefreshes: 0,
+      totalExports: 0,
+      lastRefreshTime: null
+    };
+    
+    metrics.totalRefreshes += 1;
+    metrics.lastRefreshTime = Date.now();
+    
+    await chrome.storage.local.set({ 
+      [STORAGE_KEYS.SESSION_METRICS]: metrics
+    });
+    
+    sendResponse({ success: true, metrics });
+  } catch (error) {
+    console.error('[Claude Track] Error logging refresh:', error);
     sendResponse({ success: false, error: error.message });
   }
 }
@@ -125,16 +178,67 @@ async function handleGetExportHistory(sendResponse) {
   }
 }
 
+async function handleGetSessionMetrics(sendResponse) {
+  try {
+    const result = await chrome.storage.local.get(STORAGE_KEYS.SESSION_METRICS);
+    const metrics = result[STORAGE_KEYS.SESSION_METRICS] || {
+      totalRefreshes: 0,
+      totalExports: 0,
+      lastRefreshTime: null
+    };
+    sendResponse({ success: true, data: metrics });
+  } catch (error) {
+    console.error('[Claude Track] Error getting session metrics:', error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
 async function handleClearData(sendResponse) {
   try {
     await chrome.storage.local.clear();
     await chrome.storage.local.set({
       [STORAGE_KEYS.SETTINGS]: DEFAULT_SETTINGS,
-      [STORAGE_KEYS.EXPORT_HISTORY]: []
+      [STORAGE_KEYS.EXPORT_HISTORY]: [],
+      [STORAGE_KEYS.SESSION_METRICS]: {
+        totalRefreshes: 0,
+        totalExports: 0,
+        lastRefreshTime: null
+      }
     });
     sendResponse({ success: true });
   } catch (error) {
     console.error('[Claude Track] Error clearing data:', error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+async function handleSendNotification(data, sendResponse) {
+  try {
+    const settingsResult = await chrome.storage.local.get(STORAGE_KEYS.SETTINGS);
+    const settings = settingsResult[STORAGE_KEYS.SETTINGS] || DEFAULT_SETTINGS;
+
+    // Only send notification if setting is enabled
+    if (settings.showNotifications) {
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icons/icon128.png',
+        title: data.title || 'Claude Track & Export',
+        message: data.message || '',
+        priority: data.priority || 0
+      }, (notificationId) => {
+        if (chrome.runtime.lastError) {
+          console.error('[Claude Track] Error creating notification:', chrome.runtime.lastError);
+          sendResponse({ success: false, error: chrome.runtime.lastError.message });
+        } else {
+          console.log('[Claude Track] Notification created:', notificationId);
+          sendResponse({ success: true, notificationId });
+        }
+      });
+    } else {
+      sendResponse({ success: true, skipped: true });
+    }
+  } catch (error) {
+    console.error('[Claude Track] Error sending notification:', error);
     sendResponse({ success: false, error: error.message });
   }
 }
@@ -152,12 +256,16 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 // Storage change listener for sync across tabs
 chrome.storage.onChanged.addListener((changes, namespace) => {
   if (namespace === 'local') {
-    // Broadcast changes to all Claude tabs
+    // Broadcast changes to all Claude tabs (excluding /code where content script doesn't run)
     chrome.tabs.query({ url: 'https://claude.ai/*' }, (tabs) => {
       tabs.forEach(tab => {
-        chrome.tabs.sendMessage(tab.id, { 
-          type: 'STORAGE_CHANGED', 
-          changes 
+        // Skip tabs that are on /code path where content script is excluded
+        if (tab.url && (tab.url.includes('claude.ai/code/') || tab.url.endsWith('claude.ai/code'))) {
+          return;
+        }
+        chrome.tabs.sendMessage(tab.id, {
+          type: 'STORAGE_CHANGED',
+          changes
         }).catch(() => {});
       });
     });
