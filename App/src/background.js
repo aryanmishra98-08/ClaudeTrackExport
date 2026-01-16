@@ -153,6 +153,16 @@ async function handleLogExport(data, sendResponse) {
 
 async function handleLogRefresh(sendResponse) {
   try {
+    // ENFORCE: Check if autoRefresh is enabled before logging
+    const settingsResult = await chrome.storage.local.get(STORAGE_KEYS.SETTINGS);
+    const settings = settingsResult[STORAGE_KEYS.SETTINGS] || DEFAULT_SETTINGS;
+    
+    if (!settings.autoRefresh) {
+      console.log('[Claude Track] Refresh blocked - autoRefresh setting is disabled');
+      sendResponse({ success: false, error: 'Auto-refresh is disabled in settings' });
+      return;
+    }
+
     const metricsResult = await chrome.storage.local.get(STORAGE_KEYS.SESSION_METRICS);
     const metrics = metricsResult[STORAGE_KEYS.SESSION_METRICS] || {
       totalRefreshes: 0,

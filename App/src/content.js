@@ -518,6 +518,13 @@
     const refreshBtn = document.getElementById('cte-manual-refresh');
     if (refreshBtn) {
       refreshBtn.addEventListener('click', async () => {
+        // ENFORCE: Check if auto-refresh is enabled before allowing manual refresh
+        const settings = await loadSettings();
+        if (!settings.autoRefresh) {
+          showNotification('Auto-refresh is disabled in settings', 'error');
+          return;
+        }
+
         refreshBtn.classList.add('cte-spinning');
         await fetchUsageData();
         updatePanelUI();
@@ -535,6 +542,8 @@
           }
         });
       });
+      // ENFORCE: Update refresh button state based on settings
+      updateRefreshButtonState(refreshBtn);
     }
 
     // Export button (full view)
@@ -562,8 +571,20 @@
         // Update button states
         const exportBtn = document.getElementById('cte-export-btn');
         const expandBtn = document.getElementById('cte-expand-btn');
+        const refreshBtn = document.getElementById('cte-manual-refresh');
+        
         if (exportBtn) updateExportButtonState(exportBtn);
         if (expandBtn) updateExportButtonState(expandBtn);
+        if (refreshBtn) updateRefreshButtonState(refreshBtn);
+        
+        // ENFORCE: Restart/stop auto-refresh timer based on new settings
+        if (state.settings.autoRefresh) {
+          startRefreshTimer();
+          console.log('[Claude Track] Auto-refresh timer restarted');
+        } else {
+          stopRefreshTimer();
+          console.log('[Claude Track] Auto-refresh timer stopped');
+        }
       }
     });
   }
@@ -586,7 +607,31 @@
     }
   }
 
+  function updateRefreshButtonState(btn) {
+    const isEnabled = state.settings.autoRefresh;
+    btn.disabled = !isEnabled;
+    btn.title = isEnabled 
+      ? 'Refresh' 
+      : 'Auto-refresh is disabled in settings';
+    
+    if (!isEnabled) {
+      btn.classList.add('cte-disabled');
+      btn.style.opacity = '0.5';
+      btn.style.cursor = 'not-allowed';
+    } else {
+      btn.classList.remove('cte-disabled');
+      btn.style.opacity = '1';
+      btn.style.cursor = 'pointer';
+    }
+  }
+
   function startRefreshTimer() {
+    // ENFORCE: Only start timer if autoRefresh is enabled
+    if (!state.settings.autoRefresh) {
+      console.log('[Claude Track] Auto-refresh is disabled, timer not started');
+      return;
+    }
+
     if (state.refreshTimer) clearInterval(state.refreshTimer);
     state.refreshTimer = setInterval(async () => {
       await fetchUsageData();
@@ -603,6 +648,14 @@
         }
       });
     }, CONFIG.REFRESH_INTERVAL);
+  }
+
+  function stopRefreshTimer() {
+    if (state.refreshTimer) {
+      clearInterval(state.refreshTimer);
+      state.refreshTimer = null;
+      console.log('[Claude Track] Auto-refresh timer stopped');
+    }
   }
 
   function observeUrlChanges() {
