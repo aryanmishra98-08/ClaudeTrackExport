@@ -368,6 +368,7 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   opacity: 0;
   visibility: hidden;
+  display: none; /* Hidden by default until shown */
   transition: all 0.3s ease;
   white-space: nowrap;
   z-index: 10001;
@@ -375,6 +376,7 @@
 }
 
 .cte-notification-show {
+  display: block !important;
   opacity: 1;
   visibility: visible;
   transform: translateX(-50%) translateY(0);
@@ -413,14 +415,17 @@
   border-radius: var(--cte-radius);
   font-size: 13px;
   font-weight: 500;
-  display: flex;
+  display: none; /* Hidden by default until content is added */
   align-items: center;
   gap: 12px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-  animation: cte-banner-slide-in 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  opacity: 0;
+  visibility: hidden;
 }
 
 .cte-banner-show {
+  display: flex !important;
+  visibility: visible !important;
   animation: cte-banner-slide-in 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
