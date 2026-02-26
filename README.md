@@ -190,4 +190,4 @@ Not affiliated with Anthropic. Just a tool to enhance your Claude experience.
 
 ---
 
-**Made with coffee and good vibes for the Claude community** ☕✨
+## ✨Made with coffee and good vibes for the Claude community ☕✨
