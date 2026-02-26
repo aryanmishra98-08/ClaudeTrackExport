@@ -160,16 +160,6 @@ Built over a weekend, so keep in mind:
 - Very long conversations need to be scrolled to load all messages
 - Usage data depends on Claude's API responses
 
-## Future Ideas
-
-Potential improvements for future vibe coding sessions:
-
-- Export to additional formats (JSON, HTML)
-- Batch export multiple conversations
-- Advanced filtering for specific message types
-- Enhanced PDF export with styling
-- Custom usage alerts/notifications
-
 ## Contributing
 
 Built for fun, but contributions welcome:
